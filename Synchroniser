@@ -1,0 +1,25 @@
+// data burst ko assume kr lete hain 32 , according to the rd_clk or wr_clk , the minimum depth of the FIFO , jo zarurat hogi vo 16 hai , toh we will use the depth of FIFO as 16...... 
+// and between the consecutive 2 bursts , hum read kr skte araam se........(the data that is written).......
+
+module synchronizer(out , in , clk , reset);
+input reset;
+input clk;
+input [4:0]in;
+output reg [4:0]out;
+reg [4:0]sync_out;
+
+
+always@(negedge clk or posedge reset)
+begin
+if (reset)
+begin
+sync_out<=5'b0;
+out <= 5'b0;
+end
+else
+begin
+sync_out<=in;
+out<=sync_out;
+end
+end
+endmodule
