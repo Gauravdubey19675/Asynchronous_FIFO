@@ -1,0 +1,97 @@
+`timescale 1ms/1ns
+
+module testbench;
+  reg reset;
+  reg rd_clk;
+  reg wr_clk;
+  reg rd_enable;
+  reg wr_enable;
+  reg [3:0] data_in;
+  wire [3:0] data_out;
+  wire FIFO_FULL;
+  wire FIFO_NULL;
+
+  // DUT Instance
+  asynchFF DUT (
+    .data_out(data_out),
+    .FIFO_FULL(FIFO_FULL),
+    .FIFO_NULL(FIFO_NULL),
+    .data_in(data_in),
+    .rd_clk(rd_clk),
+    .wr_clk(wr_clk),
+    .reset(reset),
+    .rd_enable(rd_enable),
+    .wr_enable(wr_enable)
+  );
+
+  // Clock generation
+  always #10 rd_clk = ~rd_clk;   // slower read clock pe less data likh payenge hum
+  always #5  wr_clk = ~wr_clk;   // faster write clock pe zyada data read kar payenge hum
+
+  initial begin
+    $dumpfile("testbench.vcd");
+    $dumpvars(0, testbench);
+    $monitor($time," reset = %b, rd_clk = %b , wr_clk = %b , data_in = %b, data_out = %b, wr_enable =%b , rd_enable =%b , FIFO_FULL =%b ,FIFO_NULL =%b " ,reset, rd_clk , wr_clk , data_in , data_out , wr_enable , rd_enable , FIFO_FULL ,FIFO_NULL);
+
+    // Initialization
+    reset = 1'b1;
+    rd_clk = 1'b1;
+    wr_clk = 1'b1;
+    rd_enable = 1'b0;
+    wr_enable = 1'b0;
+    data_in = 4'b0000;
+    #50;
+    reset = 1'b0;
+    #20;
+
+  
+  
+    repeat (16) begin
+      @(negedge wr_clk);
+      wr_enable = 1'b1;
+      data_in = data_in + 1;
+      @(negedge wr_clk);
+      wr_enable = 1'b0;
+    end
+
+
+
+    // 2 rd_clk latency before read
+       @(negedge rd_clk);
+
+  
+    repeat (16) begin
+      @(negedge rd_clk);
+      rd_enable = 1'b1;
+      @(negedge rd_clk);
+      rd_enable = 1'b0;
+    end
+   
+    @(negedge wr_clk);
+ 
+    repeat (16) begin
+      @(negedge wr_clk);
+      wr_enable = 1'b1;
+      data_in = data_in + 2;
+      @(negedge wr_clk);
+      wr_enable = 1'b0;
+    end
+
+
+ 
+    @(negedge rd_clk);
+
+
+    repeat (16) begin
+      @(negedge rd_clk);
+      rd_enable = 1'b1;
+      @(negedge rd_clk);
+      rd_enable = 1'b0;
+      #5;
+    end
+
+
+    #100;
+    $finish;
+  end
+endmodule
