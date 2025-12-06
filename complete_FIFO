@@ -1,0 +1,126 @@
+// data burst ko assume kr lete hain 32 , according to the rd_clk or wr_clk , the minimum depth of the FIFO , jo zarurat hogi vo 16 hai , toh we will use the depth of FIFO as 16...... 
+// and between the consecutive 2 bursts , hum read kr skte araam se........(the data that is written).......
+
+module synchronizer(out , in , clk , reset);
+input reset;
+input clk;
+input [4:0]in;
+output reg [4:0]out;
+reg [4:0]sync_out;
+
+
+always@(negedge clk or posedge reset)
+begin
+if (reset)
+begin
+sync_out<=5'b0;
+out <= 5'b0;
+end
+else
+begin
+sync_out<=in;
+out<=sync_out;
+end
+end
+endmodule
+
+
+module B2G(out , in);
+input [4:0]in;
+output [4:0]out;
+
+genvar i;
+generate
+for (i=4 ; i>=0 ; i=i-1)
+begin:b2g
+if (i==4)
+assign out[i] = in[i];
+else
+assign out[i] = in[i+1]^in[i];
+end
+endgenerate
+endmodule
+
+
+
+
+ module asynchFF(reset, rd_clk , wr_clk , data_in , data_out , wr_enable , rd_enable , FIFO_FULL ,FIFO_NULL);
+output reg [3:0]data_out ;
+output FIFO_NULL;
+output FIFO_FULL;
+input [3:0]data_in;
+input rd_clk ;
+input wr_clk;
+input reset;
+
+
+reg [3:0]mem[0:15];
+
+
+
+input rd_enable;
+input wr_enable;
+
+reg [4:0]wr_pointer;
+wire [4:0]gr_wr_pointer;
+wire [4:0]gr_wr_pointer_rdclk;
+
+reg [4:0]rd_pointer;
+wire [4:0]gr_rd_pointer;
+wire [4:0]gr_rd_pointer_wrclk;
+
+
+
+B2G first(gr_wr_pointer, wr_pointer);
+B2G second(gr_rd_pointer, rd_pointer);
+
+synchronizer one(gr_wr_pointer_rdclk, gr_wr_pointer , rd_clk , reset);
+synchronizer two(gr_rd_pointer_wrclk, gr_rd_pointer , wr_clk , reset);
+
+
+
+always @(posedge rd_clk or posedge reset)
+begin
+if (reset)
+begin
+data_out <= 4'b0;
+rd_pointer <= 4'b0;
+end
+else
+begin
+if(rd_enable == 1'b1 && FIFO_NULL == 1'b0)
+begin
+   data_out <= mem[rd_pointer[3:0]];
+   rd_pointer<=rd_pointer+1;
+ end
+end
+end
+
+always @(posedge wr_clk or posedge reset)
+begin
+if(reset)
+begin
+wr_pointer <= 4'b0;
+end
+else
+begin
+ if(wr_enable == 1'b1 && FIFO_FULL == 1'b0)
+ begin
+ mem[wr_pointer[3:0]] <= data_in;
+ wr_pointer <= wr_pointer+1;
+ end
+ end
+ end
+assign FIFO_NULL = (gr_rd_pointer == gr_wr_pointer_rdclk);
+assign FIFO_FULL = (
+                     (gr_wr_pointer[4] != gr_rd_pointer_wrclk[4]) &&
+                     (gr_wr_pointer[3] != gr_rd_pointer_wrclk[3]) &&
+                     (gr_wr_pointer[2:0] == gr_rd_pointer_wrclk[2:0]) );
+endmodule
+ 
+ 
+ 
+
+
+
+
